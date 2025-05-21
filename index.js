@@ -101,6 +101,49 @@ app.get('/api/room/:id', async (req, res) => {
 });
 
 
+// DELETE /api/room/:id
+app.delete('/api/post/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await collection.deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount > 0) {
+      res.status(200).json({ message: 'Roommate post deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Post not found' });
+    }
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
+app.put('/api/post/:id', async (req, res) => {
+  const { id } = req.params;
+  const updatedData = req.body;
+
+  try {
+    const result = await collection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updatedData }
+    );
+
+    if (result.modifiedCount > 0) {
+      res.status(200).json({ message: 'Roommate post updated successfully' });
+    } else {
+      res.status(404).json({ error: 'Post not found or data is the same' });
+    }
+  } catch (error) {
+    console.error('Update error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
 
 
 
