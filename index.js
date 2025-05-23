@@ -9,8 +9,9 @@ dotenv.config();
 const PORT = process.env.PORT || 5000;
 const corsOptions = {
   origin: 'http://localhost:5173',
-  Credential:true
+  credentials: true
 };
+
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -18,17 +19,20 @@ app.use(express.json());
 // DATABASE
 const uri = process.env.MONGODB_URI;
 const client = new mongodb.MongoClient(uri);
-client.connect((err) => {
-  if (err) {
-    console.error('Failed to connect to MongoDB:', err);
-  } else {
+let collection;
+
+client.connect()
+  .then(() => {
     console.log('Connected to MongoDB');
-  }
-});
-const db = client.db("rooms");
-const collection = db.collection("indiroom");
+    const db = client.db("rooms");
+    collection = db.collection("indiroom");
 
-
+    // Start server after DB is ready
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  })
+  .catch(err => console.error('Failed to connect to MongoDB:', err));
 
 // Routes
 app.get('/', (req, res) => {
@@ -46,43 +50,33 @@ app.post('/api/room', async (req, res) => {
   }
 });
 
-app.get('/api/all-room', async (req,res)=>{
-try{
-  const rooms = await collection.find().toArray()
-  res.status(200).json(rooms);
-}catch(error){
-   res.status(500).json({error:"Failed to fetch"})
-}
-}
-)
+app.get('/api/all-room', async (req, res) => {
+  try {
+    const rooms = await collection.find().toArray();
+    res.status(200).json(rooms);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch" });
+  }
+});
 
 app.get('/api/home-room', async (req, res) => {
   try {
     const rooms = await collection.find().limit(6).toArray();
     res.status(200).json(rooms);
   } catch (error) {
-    console.error('Error fetching rooms:', error);
     res.status(500).json({ error: 'Failed to fetch rooms' });
   }
 });
 
-
 app.get('/api/my-room', async (req, res) => {
   const { email } = req.query;
   try {
-    const myRooms = await collection.find({ email }).toArray()
-    if (myRooms) {
-      res.status(200).json(myRooms);
-    } else {
-      res.status(404).json({ error: "User not found" });
-    }
+    const myRooms = await collection.find({ email }).toArray();
+    res.status(200).json(myRooms);
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
 });
-
-
-
 
 app.get('/api/room/:id', async (req, res) => {
   try {
@@ -99,8 +93,6 @@ app.get('/api/room/:id', async (req, res) => {
   }
 });
 
-
-// DELETE /api/room/:id
 app.delete('/api/post/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -113,12 +105,9 @@ app.delete('/api/post/:id', async (req, res) => {
       res.status(404).json({ error: 'Post not found' });
     }
   } catch (error) {
-    console.error('Delete error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 
 app.put('/api/post/:id', async (req, res) => {
   const { id } = req.params;
@@ -136,49 +125,11 @@ app.put('/api/post/:id', async (req, res) => {
       res.status(404).json({ error: 'Post not found or data is the same' });
     }
   } catch (error) {
-    console.error('Update error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 
-// like apis
-app.get('/api/room/:id', async (req, res) => {
-  const room = await collection('rooms').findOne({ _id: new ObjectId(req.params.id) });
-  if (!room) return res.status(404).send('Not found');
-  res.send(room);
-});
-
-app.post('/api/room/:id/toggle-like', async (req, res) => {
-  const { userId } = req.body;
-  const roomId = new ObjectId(req.params.id);
-  const room = collection('rooms').findOne({ _id: roomId });
-
-  if (!room) return res.status(404).send('Not found');
-
-  const hasLiked = room.likedUsers?.includes(userId);
-
-  const update = hasLiked
-    ? { $inc: { likes: -1 }, $pull: { likedUsers: userId } }
-    : { $inc: { likes: 1 }, $addToSet: { likedUsers: userId } };
-
-  const updated = await collection('rooms').findOneAndUpdate(
-    { _id: roomId },
-    update,
-    { returnDocument: 'after' }
-  );
-
-  res.send({
-    success: true,
-    likes: updated.value.likes,
-    liked: !hasLiked,
-  });
-});
 
 
 
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
