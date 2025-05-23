@@ -20,14 +20,15 @@ app.use(express.json());
 const uri = process.env.MONGODB_URI;
 const client = new mongodb.MongoClient(uri);
 let collection;
-
+let likesCollection;
 client.connect()
   .then(() => {
     console.log('Connected to MongoDB');
     const db = client.db("rooms");
     collection = db.collection("indiroom");
+    likesCollection = db.collection("likes");
 
-    // Start server after DB is ready
+
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
@@ -129,7 +130,43 @@ app.put('/api/post/:id', async (req, res) => {
   }
 });
 
+//like apis
 
 
+app.post('/api/likes/toggle', async (req, res) => {
+  const { postId, userId } = req.body;
 
+  if (!postId || !userId) {
+    return res.status(400).json({ error: 'postId and userId are required' });
+  }
 
+  try {
+    const existingLike = await likesCollection.findOne({ postId, userId });
+
+    if (existingLike) {
+      await likesCollection.deleteOne({ postId, userId });
+      return res.json({ liked: false });
+    } else {
+      await likesCollection.insertOne({ postId, userId });
+      return res.json({ liked: true });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to toggle like' });
+  }
+});
+
+// Check like status and count
+app.get('/api/likes/status/:postId/:userId', async (req, res) => {
+  const { postId, userId } = req.params;
+
+  try {
+    const likeCount = await likesCollection.countDocuments({ postId });
+    const liked = await likesCollection.findOne({ postId, userId });
+
+    res.json({ likeCount, liked: !!liked });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch like status' });
+  }
+});
