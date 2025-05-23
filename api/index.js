@@ -23,14 +23,14 @@ let collection;
 let likesCollection;
 client.connect()
   .then(() => {
-    console.log('Connected to MongoDB');
+  
     const db = client.db("rooms");
     collection = db.collection("indiroom");
     likesCollection = db.collection("likes");
 
 
     app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+     
     });
   })
   .catch(err => console.error('Failed to connect to MongoDB:', err));
