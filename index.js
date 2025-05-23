@@ -142,7 +142,38 @@ app.put('/api/post/:id', async (req, res) => {
 });
 
 
+// like apis
+app.get('/api/room/:id', async (req, res) => {
+  const room = await collection('rooms').findOne({ _id: new ObjectId(req.params.id) });
+  if (!room) return res.status(404).send('Not found');
+  res.send(room);
+});
 
+app.post('/api/room/:id/toggle-like', async (req, res) => {
+  const { userId } = req.body;
+  const roomId = new ObjectId(req.params.id);
+  const room = collection('rooms').findOne({ _id: roomId });
+
+  if (!room) return res.status(404).send('Not found');
+
+  const hasLiked = room.likedUsers?.includes(userId);
+
+  const update = hasLiked
+    ? { $inc: { likes: -1 }, $pull: { likedUsers: userId } }
+    : { $inc: { likes: 1 }, $addToSet: { likedUsers: userId } };
+
+  const updated = await collection('rooms').findOneAndUpdate(
+    { _id: roomId },
+    update,
+    { returnDocument: 'after' }
+  );
+
+  res.send({
+    success: true,
+    likes: updated.value.likes,
+    liked: !hasLiked,
+  });
+});
 
 
 
